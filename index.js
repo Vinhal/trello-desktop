@@ -11,27 +11,27 @@ const fs = require('fs')
 const store = require('./store')
 const { templateMenu } = require('./config')
 
+const lastWindowState = store.get('lastWindowState')
+
 let mainWindow
 let subWindow
 let isQuitting = false
 
-const createWindow = () => {
-  const lastWindowState = store.get('lastWindowState')
+const createWindow = (windowName) => {
   const win = new BrowserWindow({
     title: app.getName(),
     show: false,
-    x: lastWindowState.x,
-    y: lastWindowState.y,
     width: lastWindowState.width,
     height: lastWindowState.height,
+    x: lastWindowState.x,
+    y: lastWindowState.y,
     icon: process.platform === 'linux' && path.join(__dirname, 'static', 'Icon.png'),
     minWidth: 400,
     minHeight: 200,
-    skipTaskbar: true,
-    titleBarStyle: "hidden",
+    titleBarStyle: 'hidden-inset',
     webPreferences: {
       nodeIntegration: false,
-      partition: 'persist:one',
+      partition: `persist:${windowName}`,
       preload: path.join(__dirname, 'browser.js'),
       plugins: true
     },
@@ -44,61 +44,10 @@ const createWindow = () => {
   win.loadURL('https://trello.com/')
 
   win.on('close', e => {
-    if (isQuitting) {
-      if (!mainWindow.isFullScreen()) {
+    if (isQuitting && !mainWindow.isFullScreen()) {
         store.set('lastWindowState', mainWindow.getBounds())
-      }
     } else {
       e.preventDefault()
-
-      if (process.platform === 'darwin') {
-        app.hide()
-      } else {
-        app.quit()
-      }
-    }
-  })
-
-  return win
-}
-
-const createSubWindow = () => {
-  const lastWindowState = store.get('lastWindowState')
-  const win = new BrowserWindow({
-    title: app.getName(),
-    show: false,
-    x: lastWindowState.x,
-    y: lastWindowState.y,
-    width: lastWindowState.width,
-    height: lastWindowState.height,
-    icon: process.platform === 'linux' && path.join(__dirname, 'static', 'Icon.png'),
-    minWidth: 400,
-    minHeight: 200,
-    skipTaskbar: true,
-    titleBarStyle: 'hidden',
-    parent: 'top',
-    webPreferences: {
-      nodeIntegration: false,
-      partition: 'persist:two',
-      preload: path.join(__dirname, 'browser.js'),
-      plugins: true
-    },
-  })
-
-  if (process.platform === 'darwin') {
-    win.setSheetOffset(40)
-  }
-
-  win.loadURL('https://trello.com/', {"extraHeaders" : "pragma: no-cache\n"})
-
-  win.on('close', e => {
-    if (isQuitting) {
-      if (!mainWindow.isFullScreen()) {
-        store.set('lastWindowState', mainWindow.getBounds())
-      }
-    } else {
-      e.preventDefault()
-
       if (process.platform === 'darwin') {
         app.hide()
       } else {
@@ -111,8 +60,8 @@ const createSubWindow = () => {
 }
 
 app.on('ready', () => {
-  mainWindow = createWindow()
-  subWindow = createSubWindow()
+  mainWindow = createWindow('one')
+  subWindow = createWindow('two')
   const page = mainWindow.webContents
   const subpage = subWindow.webContents
 
@@ -120,14 +69,6 @@ app.on('ready', () => {
     page.insertCSS(fs.readFileSync(path.join(__dirname, 'browser.css'), 'utf8'))
     mainWindow.show()
   })
-
-  // page.openDevTools()
-  // console.log('main', mainWindow)
-
-  // subpage.on('dom-ready', () => {
-  //   page.insertCSS(fs.readFileSync(path.join(__dirname, 'browser.css'), 'utf8'))
-  //   subWindow.show()
-  // })
 
   page.on('new-window', (e, url) => {
     e.preventDefault()
@@ -152,48 +93,33 @@ app.on('ready', () => {
 
   const templateMenu = [
     {
-      label: 'Application',
-      submenu: [
-        {label: 'About Application', selector: 'orderFrontStandardAboutPanel:'},
-        {label: 'Change', selector: '', click: () => {
-          if (mainWindow.isVisible()) {
-            mainWindow.hide()
-            subWindow.show()
-          } else {
-            subWindow.hide()
-            mainWindow.show()
-          }
-        }},
-        {type: 'separator'},
-        {
-          label: 'Quit', accelerator: 'Command+Q', click: () => {
-            app.quit()
-          }
-        }
-      ]
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        {label: 'Undo', accelerator: 'CmdOrCtrl+Z', selector: 'undo:'},
-        {label: 'Redo', accelerator: 'Shift+CmdOrCtrl+Z', selector: 'redo:'},
-        {type: 'separator'},
-        {label: 'Cut', accelerator: 'CmdOrCtrl+X', selector: 'cut:'},
-        {label: 'Copy', accelerator: 'CmdOrCtrl+C', selector: 'copy:'},
-        {label: 'Paste', accelerator: 'CmdOrCtrl+V', selector: 'paste:'},
-        {label: 'Select All', accelerator: 'CmdOrCtrl+A', selector: 'selectAll:'}
-      ]
-    },
-    {
-      label: 'Change', selector: '', click: () => {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide()
-        subWindow.show()
-      } else {
+      label: 'Personal', selector: '', click: () => {
+        if (mainWindow.isVisible()) return
+        const [width, height] = subWindow.getSize()
+        mainWindow.setSize(width, height)
+        const [x, y] = subWindow.getPosition()
+        console.log('position work', subWindow.getPosition())
+        mainWindow.setPosition(x, y)
+        console.log('position personal', mainWindow.getPosition())
+
         subWindow.hide()
         mainWindow.show()
       }
-    }},
+    },
+    {
+      label: 'Work', selector: '', click: () => {
+        if (subWindow.isVisible()) return
+        const [width, height] = mainWindow.getSize()
+        subWindow.setSize(width, height)
+        const [x, y] = mainWindow.getPosition()
+        console.log('position personal', mainWindow.getPosition())
+        subWindow.setPosition(x, y)
+        console.log('position work', subWindow.getPosition())
+
+        mainWindow.hide()
+        subWindow.show()
+      }
+    },
   ]
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(templateMenu))
