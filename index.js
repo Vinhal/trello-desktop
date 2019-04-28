@@ -99,7 +99,7 @@ app.on('ready', () => {
         mainWindow.setSize(width, height)
         const [x, y] = subWindow.getPosition()
         console.log('position work', subWindow.getPosition())
-        mainWindow.setPosition(x, y)
+        mainWindow.setPosition(x, y - 37)
         console.log('position personal', mainWindow.getPosition())
 
         subWindow.hide()
@@ -113,7 +113,7 @@ app.on('ready', () => {
         subWindow.setSize(width, height)
         const [x, y] = mainWindow.getPosition()
         console.log('position personal', mainWindow.getPosition())
-        subWindow.setPosition(x, y)
+        subWindow.setPosition(x, y - 37)
         console.log('position work', subWindow.getPosition())
 
         mainWindow.hide()
